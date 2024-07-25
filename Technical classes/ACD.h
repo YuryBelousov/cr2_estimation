@@ -1,13 +1,17 @@
 #pragma once
-#include <list>
 #include <vector>
 
-#include "chord_diagram_base_class.h"
+#include "Technical classes/chord_diagram_base_class.h"
+
+/*
+ This class represents annotated chord diagrams (ACD).
+ It contains implementations of virtual functions from the base class, as well as a function for output.
+*/
 
 class ACD : public chord_diagram_base {
 private:
-	std::list<int> chords;
-	std::list<linear_function> weights;
+	std::vector<int> chords;
+	std::vector<linear_function> weights;
 
 public:
 	ACD() = default;
@@ -17,7 +21,7 @@ public:
 	ACD& operator=(const ACD&) = default;
 	ACD& operator=(ACD&&) = default;
 
-	ACD(const std::vector<int>& _chords)  noexcept  : chord_diagram_base(_chords.size() + 2){
+	ACD(const std::vector<int>& _chords) noexcept : chord_diagram_base(_chords.size() + 2){
 		int counter = 0;
 		for (const auto& elt : _chords) {
 			chords.insert(chords.end(), elt);
@@ -26,18 +30,19 @@ public:
 		weights.insert(weights.end(), linear_function(++counter, 1, _chords.size() + 2));
 	}
 
-	std::vector<int> get_all_possible_turns() const noexcept {
+	//Return vector with all indices where we can apply Transformation II. 
+	std::vector<int> get_all_possible_turns() const noexcept override {
 		std::vector<int> results;
-		for (auto iter = std::next(chords.begin()); iter != chords.end(); ++iter)
+		for (auto iter = std::next(chords.cbegin()); iter != chords.cend(); ++iter)
 			if (*iter == *std::next(iter, -1))
 				results.push_back(*iter);
 		return results;
 	}
 
-	//Removes the closest letter from the selected side. 
-	//ACD is a cyclic string, so if it is not empty, we always can eliminate chord.	
+	//Use Transformation I to eliminate the chord closest to the basepoint.
+	//If ACD is not empty, the chord can be eliminated on either the left or right side.
 	// is_limit_case indicates whether we consider the limit case, i.e. when m->inf (and thus adding one more crossing is insignificant)
-	bool eliminate_from_side(bool is_right, bool is_limit_case) noexcept {
+	bool eliminate_from_side(bool is_right, bool is_limit_case) noexcept override {
 		if (chords.empty())
 			return false;
 
@@ -48,11 +53,11 @@ public:
 			p = *weights.begin();
 			chord_name = *chords.begin();
 
-			weights.pop_front();
-			chords.pop_front();						
+			weights.erase(weights.begin());
+			chords.erase(chords.begin());						
 			weights.begin()->operator+=(p);
 
-			//Find the another chord endpoint.
+			//Find another chord endpoint.
 			auto iter_weights = weights.begin();
 			auto iter_chords = chords.begin();
 			for (; *iter_chords != chord_name; ++iter_chords, ++iter_weights);
@@ -61,7 +66,6 @@ public:
 				iter_weights->operator+=(1);
 			weights.erase(std::next(iter_weights));
 			chords.erase(iter_chords);
-
 		}
 		else {
 			p = *weights.rbegin();
@@ -88,8 +92,7 @@ public:
 	}
 
 	//Use Transformation II to eliminate chord. 
-	// is_limit_case indicates whether we consider the limit case, i.e. when m->inf (and thus adding one more crossing is insignificant)
-	bool eliminate_turn(int chord_name) noexcept {
+	bool eliminate_turn(int chord_name) noexcept override {
 		++number_of_increases;
 		auto iter_chords = chords.begin();
 		auto iter_weights = weights.begin();
@@ -106,10 +109,10 @@ public:
 	}
 
 	friend std::ostream& operator<<(std::ostream& stream_out, const ACD& _old) {
-		auto iter_weights = _old.weights.begin();
-		auto iter_chords = _old.chords.begin();
+		auto iter_weights = _old.weights.cbegin();
+		auto iter_chords = _old.chords.cbegin();
 
-		for (; iter_chords != _old.chords.end(); ++iter_chords, ++iter_weights)
+		for (; iter_chords != _old.chords.cend(); ++iter_chords, ++iter_weights)
 			stream_out << *iter_chords << " ";
 		return stream_out;
 	}

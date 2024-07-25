@@ -1,18 +1,57 @@
 #pragma once
-#include <unordered_set>
+#include <set>
 #include <iomanip>
 #include <thread>
 #include <sstream>
 
 #include "alglib/optimization.h"	// This is a part of ALGLIB library, see https://www.alglib.net/
-#include "output_functions.h"
+
+#include "Technical classes/ACD.h"
+#include "Technical classes/pre_ACD.h"
 
 /*
-Main functions for finding estimates.
+This file contains the main functions that perform the calculations. 
+Briefly, the idea of the work can be described as follows. For all numbers 1, 2, ..., N, we consider all (pre)ACD of a given 
+complexity. For each of them, we compute the estimate and select a maximum among them.
+We reduce the brute force by pre-cutting those diagrams that obviously do not give the maximum value.
 */
 
+// Technical function. It returns a string containing the time passed.
+std::string get_time(const std::clock_t& start) {
+	std::stringstream stream;
+	double time = (double)(clock() - start) / CLOCKS_PER_SEC;
+	stream << std::fixed << std::setprecision(2);
+	std::string time_type(" sec.");
+	if (time > 60) {
+		time /= 60.;
+		time_type = " min.";
+		if (time > 60) {
+			time /= 60.;
+			time_type = " hours.";
+			if (time > 24) {
+				time /= 24.;
+				time_type = " days.";
+			}
+		}
+	}
+	stream << time;
+	return std::string(stream.str() + time_type);
+}
 
-// Check if (pre)ACD constructed from this vector would give a small estimate. There are several possible possibilities: 
+// Technical function. It writes information into the stream.
+template<class T>
+void make_simple_output(std::ostream& stream_out, int length, int num_of_diag, double max_value_8, double max_value_limit, const std::clock_t& start) {
+	std::string class_name = typeid(T) == typeid(ACD) ? "ACD" : "preACD";
+	stream_out
+		<< "Number of " << class_name << " of length  " << length
+		<< " considered is " << num_of_diag
+		<< ". It takes "
+		<< get_time(start) << " Worst values are "
+		<< std::fixed << std::setprecision(8)
+		<< max_value_8 / 8. + 1. << " and " << max_value_limit + 1. << std::endl;
+}
+
+// Check if (pre)ACD constructed from a given vector would give a small estimate. There are several possible conditions: 
 // (1) the number of chords is greater than 3, and there is a chord of length 1;
 // (2) the number of chords is greater than 5, and we can eliminate all chords without passing through a chord that has already been eliminated.
 template<class T>
@@ -28,14 +67,13 @@ bool not_interesting(const std::vector<int>& chords, int required_k) {
 	// Check if we can eliminate all chords without passing through a chord that has already been eliminated.
 	// Note that we only need to check the last k chords, as the previous sequences have already been checked.
 	if (required_k > 5 && chords.size() >= required_k) {
-		std::unordered_set<int> chords_names;
+		std::set<int> chords_names;
 		for (int i = 0; i < required_k; ++i)
 			chords_names.insert(chords[chords.size() - i - 1]);
 		return chords_names.size() == required_k;
 	}
 	return false;
 }
-
 
 // This function recursively constructs a set of all linear functions obtained after number_of_moves consecutive eliminations. 
 template <class chord_like_type>
@@ -61,9 +99,8 @@ void all_linear_functions_chord_diagram(chord_like_type start, std::set<linear_f
 		all_linear_functions_chord_diagram(start, results, number_of_moves, is_limit_case);
 }
 
-
 // This function returns the solution to the linear programming problem. See details inside.
-double create_solver(const std::set<linear_function>& all_linear_functions, bool is_limit_case, bool print_solution = false) {
+double create_solver(const std::set<linear_function>& all_linear_functions, bool is_limit_case) {
 	/*
 	We solve the following optimization problem:
 	-x[n+1] -> min
@@ -75,7 +112,7 @@ double create_solver(const std::set<linear_function>& all_linear_functions, bool
 	*/
 	double m = (is_limit_case) ? 1. : 8.;	// If we consider non limit case, we always can start with a simple curve with 8 crossings 
 	int num_of_variables =					// Additional variable for the minimization function
-		all_linear_functions.begin()->get_number_of_variables() + 1;					
+		all_linear_functions.cbegin()->get_number_of_variables() + 1;					
 	int num_of_inequalities =				// Each linear function gives an inequality and also one more inequality, namely
 		all_linear_functions.size() + 1;	// x[1] + x[2] + ... + x[n] <= m
 
@@ -161,11 +198,8 @@ double create_solver(const std::set<linear_function>& all_linear_functions, bool
 
 	alglib::minlpresults(state, solution, rep);
 
-	if (print_solution)
-		std::cout << solution.tostring(3) << std::endl;
 	return solution[num_of_variables - 1];
 }
-
 
 // This function creates the linear programming problem for a (pre)ACD and returns its solution.
 template <class chord_like_type>
@@ -174,7 +208,6 @@ double get_estimates_for_one_chord_diagram(const chord_like_type& s, int num_of_
 	all_linear_functions_chord_diagram(s, results, num_of_eleminations, is_limit_case);
 	return create_solver(results, is_limit_case);
 }
-
 
 // This function recursively traverses all possible interesting (pre)ACD starting with rhs_lhs by adding symbol new_v.
 template<class chord_like_type>
@@ -199,7 +232,7 @@ void walk_trough_all_diagrams(std::vector<int>& rhs_lhs, double& value_8, double
 	}
 
 	// Find all possible ways to add another symbol to rhs_lhs.
-	std::unordered_set<int> possible_values;
+	std::set<int> possible_values;
 	int max_v = -1;
 	for (auto c : rhs_lhs) {
 		auto iter_c = possible_values.find(c);
@@ -217,7 +250,6 @@ void walk_trough_all_diagrams(std::vector<int>& rhs_lhs, double& value_8, double
 	rhs_lhs.pop_back();
 }
 
-
 // This is the main function for finding estimates. It returns the total number of traversed (pre)ACD.
 template<class chord_like_type>
 int calculate_estimate(int length, double& max_value_8, double& max_value_limit) {
@@ -230,7 +262,7 @@ int calculate_estimate(int length, double& max_value_8, double& max_value_limit)
 	}
 
 	// Otherwise we use 11 threads.
-	const int number_of_threads = 11;
+	constexpr int number_of_threads = 11;
 
 	std::thread calculation[number_of_threads];
 
@@ -283,7 +315,6 @@ int calculate_estimate(int length, double& max_value_8, double& max_value_limit)
 	return total_num_of_diag;
 }
 
-
 // This function finds all the estimates, print them and saves the results to files. 
 void get_main_estimates(std::ofstream& file_out_ACD, std::ofstream& file_out_pre_ACD, int start_length = 1, int max_length = 6) {	
 	for (int k = start_length; k <= max_length; ++k) {
@@ -312,4 +343,3 @@ void get_main_estimates(std::ofstream& file_out_ACD, std::ofstream& file_out_pre
 		make_simple_output<ACD>(file_out_ACD, k, num_of_diag, max_value_8, max_value_limit, start);
 	}
 }
-

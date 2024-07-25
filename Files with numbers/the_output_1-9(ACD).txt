@@ -1,0 +1,9 @@
+Number of ACD of length 1 considered is 1. It takes 0.00 sec. Worst values are 1.53125 and 1.5
+Number of ACD of length 2 considered is 3. It takes 0.00 sec. Worst values are 3.125 and 3
+Number of ACD of length 3 considered is 15. It takes 0.00 sec. Worst values are 4.1875 and 4
+Number of ACD of length 4 considered is 36. It takes 0.01 sec. Worst values are 6.2 and 5.8
+Number of ACD of length 5 considered is 329. It takes 0.13 sec. Worst values are 10.7857 and 10
+Number of ACD of length 6 considered is 1408. It takes 1.29 sec. Worst values are 14.1389 and 13
+Number of ACD of length 7 considered is 27391. It takes 35.30 sec. Worst values are 19.6875 and 18
+Number of ACD of length 8 considered is 518532. It takes 16.70 min. Worst values are 34.175 and 31
+Number of ACD of length 9 considered is 10125994. It takes 8.49 hours. Worst values are 44.2963 and 40

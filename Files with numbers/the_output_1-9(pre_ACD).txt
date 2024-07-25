@@ -1,0 +1,9 @@
+Number of pre-ACD of length 1 considered is 2. It takes 0.00 sec. Worst values are 2.125 and 2
+Number of pre-ACD of length 2 considered is 10. It takes 0.00 sec. Worst values are 3.25 and 3
+Number of pre-ACD of length 3 considered is 76. It takes 0.01 sec. Worst values are 4.9375 and 4.5
+Number of pre-ACD of length 4 considered is 407. It takes 0.07 sec. Worst values are 7.75 and 7
+Number of pre-ACD of length 5 considered is 4834. It takes 1.07 sec. Worst values are 11.125 and 10
+Number of pre-ACD of length 6 considered is 10013. It takes 3.83 sec. Worst values are 16.75 and 15
+Number of pre-ACD of length 7 considered is 293018. It takes 2.24 min. Worst values are 24.625 and 22
+Number of pre-ACD of length 8 considered is 8175805. It takes 1.35 hours. Worst values are 37 and 33
+Number of pre-ACD of length 9 considered is 228514054. It takes 2.17 days. Worst values are 53.875 and 48

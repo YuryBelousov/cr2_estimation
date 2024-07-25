@@ -1,17 +1,22 @@
 #pragma once
 #include <vector>
-#include <set>
-#include "chord_diagram_base_class.h"
 
+#include "Technical classes/chord_diagram_base_class.h"
+
+/*
+ This class represents preACD.
+ It contains implementations of virtual functions from the base class, as well as a function for output.
+ Since chords without one end are possible in the case of preACD, we also need a special class for working with them.
+*/
 
 class pre_ACD : public chord_diagram_base {
 private:
-	//Technical class for storing an alpha-string character along with an associated linear function
+	//Technical class for storing a letter corresponding to a chord and a linear function associated with it.
 	class letter {
 	public:
 		int alpha_number;							//If it is -1, then letter is a part of simple curve J
 		int id;										//Unique id of the letter;
-		linear_function closest_linear_function;	//This is the linear function associated with the letter
+		linear_function closest_linear_function;	//The linear function associated with the letter
 
 	public:
 		letter(letter&&) = default;
@@ -19,18 +24,18 @@ private:
 		letter& operator=(letter&&) = default;
 		letter& operator=(const letter&) = default;
 
-		letter() : alpha_number(-1), id(-1), closest_linear_function() {}
-		letter(int num, int _id, int num_of_variables) : alpha_number(num), id(_id), closest_linear_function(_id, 1, num_of_variables) {}
+		letter() noexcept : alpha_number(-1), id(-1), closest_linear_function() {}
+		letter(int num, int _id, int num_of_variables) noexcept : alpha_number(num), id(_id), closest_linear_function(_id, 1, num_of_variables) {}
 
-		letter& operator+=(const letter& letter) {
+		letter& operator+=(const letter& letter) noexcept {
 			closest_linear_function += letter.closest_linear_function;
 			return *this;
 		}
 	};
 
 private:
-	std::vector<letter> lhs;			//List of letters on the left hand side from J (the closest point has the maximal index)
-	std::vector<letter> rhs;			//List of letters on the right hand side from J (the closest point has the maximal index)
+	std::vector<letter> lhs;	//List of letters on the left hand side from J (the closest point has the maximal index)
+	std::vector<letter> rhs;	//List of letters on the right hand side from J (the closest point has the maximal index)
 
 private:
 	//Technical function. Checks if a letter has a pair. 
@@ -52,6 +57,12 @@ private:
 	}
 public:
 	pre_ACD() = default;
+	pre_ACD(const pre_ACD&) = default;
+	pre_ACD(pre_ACD&&) = default;
+
+	pre_ACD& operator=(const pre_ACD&) = default;
+	pre_ACD& operator=(pre_ACD&&) = default;
+
 	pre_ACD(const std::vector<int>& _chords) noexcept : chord_diagram_base(_chords.size()+1){
 		int half_size = _chords.size() / 2;
 		lhs.resize(half_size);
@@ -62,10 +73,26 @@ public:
 		}
 	}
 
-	//Removes the closest letter from the selected side. 
+	//Return vector with all indices where we can apply Transformation II. 
+	//The index is greater than zero for the right hand side element and less than zero otherwise
+	//Notice: the index can not be zero.
+	std::vector<int> get_all_possible_turns() const noexcept override {
+		std::vector<int> indecies;
+		for (int i = lhs.size() - 1; i > 0; --i) {
+			if (lhs[i].alpha_number == lhs[i - 1].alpha_number)
+				indecies.push_back(-i);
+		}
+		for (int i = rhs.size() - 1; i > 0; --i) {
+			if (rhs[i].alpha_number == rhs[i - 1].alpha_number)
+				indecies.push_back(i);
+		}
+		return indecies;
+	}
+
+	//Use Transformation I to eliminate the chord closest to the basepoint. 
 	//If the function returns false, then there are no letters left on the corresponding side.
 	// is_limit_case shows whether we consider the limit case, i.e. when m->inf (and thus adding one more crossing is insignificant)
-	bool eliminate_from_side(bool is_right, bool is_limit_case) noexcept {
+	bool eliminate_from_side(bool is_right, bool is_limit_case) noexcept override {
 		std::vector<letter>& side = is_right ? rhs : lhs;
 		//Check if we can eliminate letter
 		if (side.empty())
@@ -97,8 +124,8 @@ public:
 		return true;
 	}
 
-	//Use second method to eliminate crossing
-	bool eliminate_turn(int index) noexcept {
+	//Use Transformation II to eliminate chord. 
+	bool eliminate_turn(int index) noexcept override {
 		//If index is < 0, then the symbol is on the left hand side
 		std::vector<letter>& side = index > 0 ? rhs : lhs;
 		int ind = std::abs(index);
@@ -108,34 +135,18 @@ public:
 		//If two paired letters are not the last, then increase the linear function corresponding to the next letter
 		if (ind > 1) 
 			side[ind - 2].closest_linear_function += 
-			/*2 **/ side[ind - 1].closest_linear_function + side[ind].closest_linear_function;
+			side[ind - 1].closest_linear_function + side[ind].closest_linear_function;
 		
 		side.erase(std::next(side.begin(), ind - 1), std::next(side.begin(), ind + 1));
 		return true;
 	}
 
-	//Return vector with all indices where we can apply the second method. 
-	//The index is greater than zero for the right hand side element and less than zero otherwise
-	//Notice: the index can not be zero.
-	std::vector<int> get_all_possible_turns() const noexcept {
-		std::vector<int> indecies;
-		for (int i = lhs.size() - 1; i > 0; --i) {
-			if (lhs[i].alpha_number == lhs[i - 1].alpha_number)
-				indecies.push_back(-i);
-		}
-		for (int i = rhs.size() - 1; i > 0; --i) {
-			if (rhs[i].alpha_number == rhs[i - 1].alpha_number)
-				indecies.push_back(i);
-		}
-		return indecies;
-	}
-
 	friend std::ostream& operator<<(std::ostream& stream_out, const pre_ACD& str) {
-		for (size_t i = 0; i < str.lhs.size(); ++i)
-			stream_out << str.lhs[i].alpha_number << " ";
+		for (auto iter = str.lhs.cbegin(); iter != str.lhs.cend(); ++iter)
+			stream_out << iter->alpha_number << " ";
 		stream_out << "| ";
-		for (int i = str.rhs.size() - 1; i > -1; --i)
-			stream_out << str.rhs[i].alpha_number << " ";
+		for (auto iter = str.rhs.crbegin(); iter != str.rhs.crend(); ++iter)
+			stream_out << iter->alpha_number << " ";
 		return stream_out;
 	}
 };
